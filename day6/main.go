@@ -15,7 +15,6 @@ func main() {
 
 func findMarker(input string, size int) int {
 	var arr []string
-	var markerReached int
 	for i, c := range input {
 		if i <= size-1 {
 			arr = append(arr, string(c))
@@ -33,7 +32,7 @@ func findMarker(input string, size int) int {
 		}
 	}
 
-	return markerReached
+	return -1
 }
 
 func keepArraySizeConstant(arr []string, toAppend string) []string {
