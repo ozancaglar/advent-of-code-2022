@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"ozan/utils"
+	"sort"
 	"strconv"
 	"strings"
 )
@@ -41,7 +42,7 @@ func main() {
 }
 
 func partOne() {
-	_, allDirs := buildTree()
+	rootDir, allDirs := buildTree()
 	var partOneSum int
 
 	for i := len(allDirs) - 1; i >= 0; i-- {
@@ -56,6 +57,20 @@ func partOne() {
 		}
 	}
 	fmt.Println(partOneSum)
+
+	fmt.Println(partTwo(rootDir, allDirs))
+}
+
+func partTwo(rootDir *dir, allDirs []*dir) int {
+	spaceNeeded := 30000000 - (70000000 - rootDir.size)
+	var deletableSizes []int
+	for _, d := range allDirs {
+		if spaceNeeded-d.size < 0 {
+			deletableSizes = append(deletableSizes, d.size)
+		}
+	}
+	sort.Ints(deletableSizes)
+	return deletableSizes[0]
 }
 
 func buildTree() (*dir, []*dir) {
