@@ -10,40 +10,30 @@ import (
 )
 
 type dir struct {
-	dirName          string
-	files            []file
-	nestedDirIndexes []int
-	dirSize          *int
+	name     string
+	files    []file
+	parent   *dir
+	children *[]dir
+	size     int
 }
 
 type file struct {
-	fileName string
-	fileSize int
+	name string
+	size int
 }
 
-func newDir(dirName string, files []file, dirs []int) dir {
-	init := 0
-	return dir{dirName: dirName, files: files, nestedDirIndexes: dirs, dirSize: &init}
+func newDir(name string, parent *dir) dir {
+	return dir{name: name, files: []file{}, parent: parent, children: &[]dir{}, size: 0}
 }
 
 func newFile(str string) (file, error) {
 	splitString := strings.Split(str, " ")
-	fileName := splitString[1]
-	fileSize, err := strconv.Atoi(splitString[0])
+	name := splitString[1]
+	size, err := strconv.Atoi(splitString[0])
 	if err != nil {
-		return file{}, errors.New("failed to obtain fileSize for file")
+		return file{}, errors.New("failed to obtain size for file")
 	}
-	return file{fileName, fileSize}, nil
-}
-
-func getDirIndex(dirs []dir, dirName string) int {
-	for i, dir := range dirs {
-		if dir.dirName == dirName {
-			return i
-		}
-	}
-
-	return -1
+	return file{name, size}, nil
 }
 
 func main() {
@@ -51,36 +41,48 @@ func main() {
 }
 
 func partOne() {
-	scanner := utils.StreamLines("input.txt")
+	_, allDirs := buildTree()
+	var partOneSum int
 
-	var dirs []dir
-	var currDir string
+	for i := len(allDirs) - 1; i >= 0; i-- {
+		if allDirs[i].parent != nil {
+			allDirs[i].parent.size += allDirs[i].size
+		}
+	}
+
+	for _, d := range allDirs {
+		if d.size <= 100000 {
+			partOneSum += d.size
+		}
+	}
+	fmt.Println(partOneSum)
+}
+
+func buildTree() (*dir, []*dir) {
+	scanner := utils.StreamLines("input.txt")
+	rootDir := newDir("/", nil)
+	currDir := &rootDir
+	allDirs := []*dir{}
+	allDirs = append(allDirs, currDir)
 
 	for scanner.Scan() {
 		txt := scanner.Text()
-		if strings.Contains(txt, "$ ls") || strings.Contains(txt, "$ cd ..") {
+		if strings.Contains(txt, "$ ls") || strings.Contains(txt, "$ cd /") || strings.Contains(txt, "dir") {
+			continue
+		}
+
+		if txt == "$ cd .." {
+			currDir = currDir.parent
 			continue
 		}
 
 		if strings.Contains(txt, "$ cd") {
-			currDir = strings.Split(txt, " ")[2]
-			if getDirIndex(dirs, currDir) == -1 {
-				dirs = append(dirs, newDir(currDir, []file{}, nil))
-			}
-			continue
-		}
+			newDirName := strings.Split(txt, " ")[2]
+			newDir := newDir(newDirName, currDir)
+			*currDir.children = append(*currDir.children, newDir)
+			currDir = &newDir
+			allDirs = append(allDirs, currDir)
 
-		i := getDirIndex(dirs, currDir)
-		if strings.Contains(txt, "dir") {
-			newDirName := strings.Split(txt, " ")[1]
-			j := getDirIndex(dirs, newDirName)
-			if j == -1 {
-				newDir := newDir(newDirName, []file{}, nil)
-				dirs = append(dirs, newDir)
-				dirs[i].nestedDirIndexes = append(dirs[i].nestedDirIndexes, getDirIndex(dirs, newDirName))
-				continue
-			}
-			dirs[i].nestedDirIndexes = append(dirs[i].nestedDirIndexes, j)
 			continue
 		}
 
@@ -89,42 +91,9 @@ func partOne() {
 			log.Fatal(err)
 		}
 
-		dirs[i].files = append(dirs[i].files, f)
+		currDir.files = append(currDir.files, f)
+		currDir.size += f.size
 	}
 
-	for i := len(dirs) - 1; i >= 0; i-- {
-		*dirs[i].dirSize = calculateDirSize(dirs[i], dirs)
-	}
-
-	for i := len(dirs) - 1; i >= 0; i-- {
-		addNestedDirSizes(dirs[i], dirs)
-	}
-
-	var partOneSum int
-
-	for i := range dirs {
-		if dirSize := *dirs[i].dirSize; dirSize <= 100000 {
-			partOneSum += dirSize
-		}
-	}
-
-	fmt.Println(partOneSum)
-}
-
-func calculateDirSize(dir dir, dirs []dir) int {
-	var sum int
-	for i := range dir.files {
-		sum += dir.files[i].fileSize
-	}
-	return sum
-}
-
-func addNestedDirSizes(dir dir, dirs []dir) {
-	if len(dir.nestedDirIndexes) == 0 {
-		return
-	}
-
-	for _, dirIndex := range dir.nestedDirIndexes {
-		*dir.dirSize += *dirs[dirIndex].dirSize
-	}
+	return &rootDir, allDirs
 }
